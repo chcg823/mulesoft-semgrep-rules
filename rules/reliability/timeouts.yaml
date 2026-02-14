@@ -1,0 +1,162 @@
+# MuleSoft Semgrep Rules — Reliability: Timeouts & Resource Limits
+# Category : reliability
+# Severity : WARNING
+# Use      : semgrep --config rules/reliability/timeouts.yaml
+---
+rules:
+  - id: mulesoft-scatter-gather-missing-timeout
+    message: >
+      Scatter-Gather scope is missing a timeout attribute.
+      Without a timeout the scope waits indefinitely for all routes to complete,
+      which can exhaust thread pools under slow downstream services.
+      Add: timeout="5000" (milliseconds) appropriate for your SLA.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: HIGH
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/scatter-gather-concept
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern: '<scatter-gather ...>...</scatter-gather>'
+      - pattern-not: '<scatter-gather ... timeout="$T" ...>...</scatter-gather>'
+
+  - id: mulesoft-vm-consume-missing-timeout
+    message: >
+      VM Consume operation has no timeout configured.
+      A missing timeout will block the thread indefinitely if no message arrives.
+      Add: timeout="30000" timeoutUnit="MILLISECONDS" (or appropriate values).
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: HIGH
+      references:
+        - https://docs.mulesoft.com/vm-connector/latest/vm-consume
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: '<vm:consume ... />'
+      - pattern-not: '<vm:consume ... timeout="$T" ... />'
+
+  - id: mulesoft-vm-publish-consume-missing-timeout
+    message: >
+      VM Publish-Consume operation has no timeout configured.
+      Without a timeout it blocks indefinitely waiting for a reply.
+      Add: timeout="30000" timeoutUnit="MILLISECONDS".
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: HIGH
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: '<vm:publish-consume ... />'
+      - pattern-not: '<vm:publish-consume ... timeout="$T" ... />'
+
+  - id: mulesoft-http-requester-missing-response-timeout
+    message: >
+      HTTP Requester config '$NAME' does not set a responseTimeout.
+      The default is 10 seconds, which may be too long or too short for your use case.
+      Define an explicit responseTimeout in the requester config or at the operation level.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/http-connector/latest/http-request-ref
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: |
+          <http:request-config name="$NAME" ...>
+            $...BODY
+          </http:request-config>
+      - pattern-not: '<http:request-config name="$NAME" ... responseTimeout="$T" ...>'
+      - pattern-not: |
+          <http:request-config name="$NAME" ...>
+            ...
+            <http:request-connection ... responseTimeout="$T" .../>
+            ...
+          </http:request-config>
+
+  - id: mulesoft-async-scope-missing-timeout
+    message: >
+      Async scope does not set a maxConcurrency limit.
+      Unbounded concurrency can exhaust the CPU/thread pool.
+      Set maxConcurrency="$N" to limit parallel executions to a safe number.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: '<async ...>...</async>'
+      - pattern-not: '<async ... maxConcurrency="$N" ...>...</async>'
+
+  - id: mulesoft-db-query-missing-timeout
+    message: >
+      Database operation does not set a queryTimeout.
+      A slow or locked query will hold a DB connection thread indefinitely.
+      Add: queryTimeout="30" queryTimeoutUnit="SECONDS" to the DB operation.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/db-connector/latest/db-connector-query
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern: '<db:select ... />'
+          - pattern: '<db:insert ... />'
+          - pattern: '<db:update ... />'
+          - pattern: '<db:delete ... />'
+          - pattern: '<db:stored-procedure ... />'
+      - pattern-not: '<db:select ... queryTimeout="$T" ... />'
+      - pattern-not: '<db:insert ... queryTimeout="$T" ... />'
+      - pattern-not: '<db:update ... queryTimeout="$T" ... />'
+      - pattern-not: '<db:delete ... queryTimeout="$T" ... />'
+      - pattern-not: '<db:stored-procedure ... queryTimeout="$T" ... />'

@@ -1,0 +1,132 @@
+# MuleSoft Semgrep Rules — Security: Injection & Unsafe Evaluation
+# Category : security
+# Severity : ERROR / WARNING
+# Use      : semgrep --config rules/security/injection.yaml
+---
+rules:
+  - id: mulesoft-dw-unsafe-do-eval
+    message: >
+      Dynamic 'do' block in DataWeave can execute arbitrary expressions at runtime.
+      Avoid building expressions from user-controlled input. If dynamic evaluation
+      is genuinely required, sanitize and validate all inputs beforehand.
+    severity: ERROR
+    languages: [generic]
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe: "CWE-94: Improper Control of Generation of Code"
+      owasp: "A03:2021 - Injection"
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/dataweave/latest/dataweave-language-guide
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern-regex: '\bdo\s*\{'
+
+  - id: mulesoft-groovy-script-with-payload
+    message: >
+      Groovy/scripting component accesses payload directly. If payload originates
+      from an untrusted source, this can lead to script injection or remote code
+      execution. Validate and sanitize payload before passing it to script engines.
+    severity: ERROR
+    languages: [xml]
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe: "CWE-94: Improper Control of Generation of Code"
+      owasp: "A03:2021 - Injection"
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              <scripting:execute engine="groovy" ...>
+                <scripting:code>$...CODE</scripting:code>
+              </scripting:execute>
+          - pattern: |
+              <scripting:execute engine="nashorn" ...>
+                <scripting:code>$...CODE</scripting:code>
+              </scripting:execute>
+
+  - id: mulesoft-dynamic-url-from-payload
+    message: >
+      HTTP Requester URL is constructed dynamically from payload or variables.
+      If the source is user-controlled this enables Server-Side Request Forgery (SSRF).
+      Validate allowed hosts against a whitelist before making outbound requests.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp: "A10:2021 - Server-Side Request Forgery"
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern-regex: '<http:request[^>]*url\s*=\s*"#\[payload'
+          - pattern-regex: '<http:request[^>]*url\s*=\s*"#\[vars\.'
+          - pattern-regex: '<http:request[^>]*path\s*=\s*"#\[payload'
+
+  - id: mulesoft-xpath-injection
+    message: >
+      XPath expression uses runtime variables. If the value comes from user input
+      this enables XPath injection. Use parameterized XPath or validate/escape
+      the input before using it in an XPath expression.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: security
+      subcategory: [vuln]
+      cwe: "CWE-643: Improper Neutralization of Data within XPath Expressions"
+      owasp: "A03:2021 - Injection"
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-regex: |
+          xpath\s*\(\s*["'][^"']*\$\{
+
+  - id: mulesoft-logger-sensitive-data
+    message: >
+      Logger message includes what may be sensitive runtime data (payload, variables).
+      Avoid logging passwords, tokens, PII or full payloads in production.
+      Use log level DEBUG/TRACE and ensure production log levels are INFO or higher.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: security
+      subcategory: [audit]
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-regex: '<logger[^>]*message\s*=\s*"[^"]*#\[payload[^"]*"'

@@ -1,0 +1,185 @@
+# MuleSoft Semgrep Rules — Reliability: Error Handling
+# Category : reliability
+# Severity : WARNING
+# Use      : semgrep --config rules/reliability/error-handling.yaml
+---
+rules:
+  - id: mulesoft-flow-missing-error-handler
+    message: >
+      Flow '$NAME' does not define an error-handler block.
+      Unhandled errors propagate as 500 responses or are silently swallowed.
+      Add an explicit <error-handler> with on-error-propagate / on-error-continue
+      to control error responses and ensure structured logging.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: HIGH
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/error-handling
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern: |
+          <flow name="$NAME" ...>
+            $...BODY
+          </flow>
+      - pattern-not: |
+          <flow name="$NAME" ...>
+            ...
+            <error-handler>...</error-handler>
+          </flow>
+      - metavariable-regex:
+          metavariable: $NAME
+          # Exclude housekeeping flows unlikely to need custom error handling
+          regex: '^(?!.*(-options-flow|health-check|console|ping)).*$'
+
+  - id: mulesoft-on-error-continue-silent
+    message: >
+      on-error-continue handler has no logger or notification.
+      Swallowing errors silently makes incidents invisible in production.
+      Add a <logger> (level="ERROR") and/or raise an alert inside this handler.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: |
+          <on-error-continue ...>
+            $...BODY
+          </on-error-continue>
+      - pattern-not: |
+          <on-error-continue ...>
+            ...
+            <logger .../>
+            ...
+          </on-error-continue>
+      - pattern-not: |
+          <on-error-continue ...>
+            ...
+            <raise-error .../>
+            ...
+          </on-error-continue>
+
+  - id: mulesoft-missing-reconnection-strategy
+    message: >
+      Connector config '$NAME' does not define a reconnection strategy.
+      Without reconnection, a transient network failure will cause the Mule app
+      to fail permanently. Add <reconnection reconnectForever="true"> or
+      <reconnection><reconnect frequency="..." count="..."/></reconnection>.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/reconnection-strategy-about
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              <db:config name="$NAME" ...>
+                $...BODY
+              </db:config>
+          - pattern: |
+              <http:request-config name="$NAME" ...>
+                $...BODY
+              </http:request-config>
+          - pattern: |
+              <jms:config name="$NAME" ...>
+                $...BODY
+              </jms:config>
+      - pattern-not-inside: |
+          <$CONFIG name="$NAME" ...>
+            ...
+            <reconnection ...>...</reconnection>
+            ...
+          </$CONFIG>
+
+  - id: mulesoft-apikit-router-missing-error-mapping
+    message: >
+      APIKit router flow is missing error-handler mappings for APIKIT errors.
+      Without these mappings, APIKit validation errors (e.g., APIKIT:BAD_REQUEST)
+      return raw 500 responses instead of structured 4xx responses.
+      Add on-error-continue handlers for APIKIT:NOT_FOUND, APIKIT:METHOD_NOT_ALLOWED,
+      APIKIT:BAD_REQUEST, APIKIT:NOT_ACCEPTABLE, APIKIT:UNSUPPORTED_MEDIA_TYPE.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/apikit/latest/apikit-error-handling-reference
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: |
+          <flow name="$NAME" ...>
+            ...
+            <apikit:router .../>
+            ...
+          </flow>
+      - pattern-not: |
+          <flow name="$NAME" ...>
+            ...
+            <error-handler>
+              ...
+              <on-error-continue type="APIKIT:$ERR" ...>...</on-error-continue>
+              ...
+            </error-handler>
+          </flow>
+
+  - id: mulesoft-try-scope-missing-error-handler
+    message: >
+      Try scope does not contain an error-handler. A try scope without an error
+      handler behaves the same as no try scope at all — errors still propagate.
+      Add an explicit error-handler inside the try scope to handle specific errors.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: reliability
+      subcategory: [best-practice]
+      confidence: HIGH
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: |
+          <try ...>
+            $...BODY
+          </try>
+      - pattern-not: |
+          <try ...>
+            ...
+            <error-handler>...</error-handler>
+          </try>

@@ -1,0 +1,151 @@
+# MuleSoft Semgrep Rules — Maintainability: POM Standards
+# Category : maintainability
+# Severity : WARNING
+# Use      : semgrep --config rules/maintainability/pom.yaml
+---
+rules:
+  - id: mulesoft-pom-missed-plugin
+    message: >
+      Missing essential Maven plugin for MuleSoft projects.
+      Ensure both 'mule-maven-plugin' and 'munit-maven-plugin' are configured
+      in the build plugins section.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [build]
+      confidence: HIGH
+    paths:
+      include:
+        - "*pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              <plugins>
+                ...
+              </plugins>
+          - pattern: |
+              <build>
+                ...
+              </build>
+      - pattern-not: |
+          <plugins>
+            ...
+            <plugin>
+              <groupId>org.mule.tools.maven</groupId>
+              <artifactId>mule-maven-plugin</artifactId>
+              ...
+            </plugin>
+            ...
+          </plugins>
+      - pattern-not: |
+          <plugins>
+            ...
+            <plugin>
+              <groupId>com.mulesoft.munit.tools</groupId>
+              <artifactId>munit-maven-plugin</artifactId>
+              ...
+            </plugin>
+            ...
+          </plugins>
+
+  - id: mulesoft-pom-distribution-management
+    message: >
+      Project is missing distributionManagement configuration.
+      This is required to publish artifacts to Exchange or a binary repository.
+      Configure <distributionManagement> with repository and snapshotRepository.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [build]
+      confidence: HIGH
+    paths:
+      include:
+        - "*pom.xml"
+    patterns:
+      - pattern: '<project ...>...</project>'
+      - pattern-not: |
+          <project ...>
+            ...
+            <distributionManagement>...</distributionManagement>
+            ...
+          </project>
+
+  - id: mulesoft-pom-repositories
+    message: >
+      Missing MuleSoft repositories configuration.
+      Ensure 'MuleSoft Releases', 'MuleSoft Exchange', and 'MuleSoft Snapshots'
+      (if needed) are defined in <repositories> and <pluginRepositories>.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [build]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*pom.xml"
+    patterns:
+      - pattern: '<project ...>...</project>'
+      - pattern-not: |
+          <project ...>
+            ...
+            <repositories>...</repositories>
+            ...
+          </project>
+
+  - id: mulesoft-pom-mule-artifact-json
+    message: >
+      'mule-artifact.json' is excluded from the build.
+      This file is essential for deployment properties. Remove it from the
+      exclusion list in the mule-maven-plugin configuration.
+    severity: ERROR
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [build]
+      confidence: HIGH
+    paths:
+      include:
+        - "*pom.xml"
+    patterns:
+      - pattern: |
+          <plugin>
+            <groupId>org.mule.tools.maven</groupId>
+            <artifactId>mule-maven-plugin</artifactId>
+            ...
+            <configuration>
+              ...
+              <classifier>mule-application</classifier>
+              <packagingExcludes>
+                ...
+                <packagingExclude>mule-artifact.json</packagingExclude>
+                ...
+              </packagingExcludes>
+              ...
+            </configuration>
+          </plugin>
+
+  - id: mulesoft-pom-mule-runtime-version
+    message: >
+      Mule runtime version property is missing or empty.
+      Define <app.runtime> (or similar) with a valid version (e.g., 4.4.0-20220221)
+      to match your targeted CloudHub/Runtime Fabric environment.
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [build]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*pom.xml"
+    patterns:
+      - pattern: '<properties>...</properties>'
+      - pattern-not: |
+          <properties>
+            ...
+            <app.runtime>...</app.runtime>
+            ...
+          </properties>

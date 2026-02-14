@@ -1,0 +1,119 @@
+# MuleSoft Semgrep Rules — Maintainability: Naming Conventions
+# Category : maintainability
+# Severity : INFO
+# Use      : semgrep --config rules/maintainability/naming.yaml
+#
+# Conventions enforced:
+#   Variables / properties  → camelCase
+#   Flows                   → kebab-case  (e.g. get-customer-by-id)
+#   Global config names     → kebab-case  (e.g. http-listener-config)
+---
+rules:
+  - id: mulesoft-variable-not-camel-case
+    message: >
+      Variable '$NAME' does not follow camelCase convention.
+      Use camelCase for set-variable names (e.g., customerName, requestId).
+      Avoid snake_case, PascalCase, or UPPER_CASE identifiers.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [convention]
+      confidence: HIGH
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: '<set-variable variableName="$NAME" ... />'
+      - metavariable-regex:
+          metavariable: $NAME
+          # Match if the name contains _ OR starts with uppercase OR is all UPPER
+          regex: '(?:.*_.*|^[A-Z].*)'
+
+  - id: mulesoft-flow-name-not-kebab-case
+    message: >
+      Flow '$NAME' does not follow kebab-case naming convention.
+      Flow names should be lowercase with hyphens (e.g., get-customer-by-id,
+      post-order-flow, process-payment-sub-flow).
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [convention]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern: '<flow name="$NAME" ...>...</flow>'
+          - pattern: '<sub-flow name="$NAME" ...>...</sub-flow>'
+      - metavariable-regex:
+          metavariable: $NAME
+          # Match names that contain uppercase letters or underscores (not kebab-case)
+          regex: '.*[A-Z_].*'
+
+  - id: mulesoft-property-key-not-dot-notation
+    message: >
+      Property key '$NAME' does not use dot-notation conventions.
+      MuleSoft property keys should follow hierarchical dot-notation:
+      http.listener.port, db.connection.host, api.autodiscovery.id
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: maintainability
+      subcategory: [convention]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      # Match property keys that use camelCase (no dot, no hyphen, has upper)
+      - pattern-regex: '^[a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*\s*='
+
+  - id: mulesoft-global-config-name-not-pascal-case
+    message: >
+      Global config '$NAME' name does not follow PascalCase with underscores convention.
+      Name global configs with PascalCase and underscores:
+      e.g., Http_Listener_Config, Db_Oracle_Config, Jms_Activemq_Config.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [convention]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          # Check 'name' attribute
+          - pattern: '<http:listener-config name="$NAME" ... />'
+          - pattern: '<http:request-config name="$NAME" ... />'
+          - pattern: '<db:config name="$NAME" ... />'
+          - pattern: '<jms:config name="$NAME" ... />'
+          # Check 'doc:name' attribute
+          - pattern: '<http:listener-config doc:name="$NAME" ... />'
+          - pattern: '<http:request-config doc:name="$NAME" ... />'
+          - pattern: '<db:config doc:name="$NAME" ... />'
+          - pattern: '<jms:config doc:name="$NAME" ... />'
+      - metavariable-regex:
+          metavariable: $NAME
+          # Match if it is NOT PascalCase with underscores (start with Upper, separated by _)
+          regex: '^(?!([A-Z][a-zA-Z0-9]*)(_[A-Z][a-zA-Z0-9]*)*$).+$'

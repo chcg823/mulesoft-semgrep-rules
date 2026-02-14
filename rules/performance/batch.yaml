@@ -1,0 +1,96 @@
+# MuleSoft Semgrep Rules — Performance: Batch Processing
+# Category : performance
+# Severity : INFO / WARNING
+# Use      : semgrep --config rules/performance/batch.yaml
+---
+rules:
+  - id: mulesoft-foreach-full-payload
+    message: >
+      Foreach iterating over the full payload. For large datasets (> a few thousand
+      records) this loads everything into memory before processing.
+      Consider using Batch Job (batch:job) which processes records in blocks,
+      supports parallel processing, and provides built-in error tracking.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/batch-processing-concept
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-either:
+          - pattern: '<foreach collection="#[payload]" ...>...</foreach>'
+          - pattern: '<foreach collection="#[payload.*]" ...>...</foreach>'
+
+  - id: mulesoft-batch-missing-block-size
+    message: >
+      Batch Job does not configure a blockSize.
+      The default block size (100) may not be optimal for your data volume.
+      Tune blockSize to balance memory usage and processing efficiency
+      (e.g., blockSize="200" for high-memory servers, lower for constrained envs).
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/batch-job-instance-id
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+    patterns:
+      - pattern: '<batch:job ...>...</batch:job>'
+      - pattern-not: '<batch:job ... blockSize="$N" ...>...</batch:job>'
+
+  - id: mulesoft-batch-missing-max-failed-records
+    message: >
+      Batch Job does not set maxFailedRecords. Without this limit a batch run
+      continues even if every record fails, wasting resources and potentially
+      causing cascading failures.
+      Add: maxFailedRecords="100" (or a threshold appropriate for your SLA).
+    severity: WARNING
+    languages: [xml]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+    patterns:
+      - pattern: '<batch:job ...>...</batch:job>'
+      - pattern-not: '<batch:job ... maxFailedRecords="$N" ...>...</batch:job>'
+
+  - id: mulesoft-batch-step-missing-accept-policy
+    message: >
+      Batch Step does not define an acceptPolicy.
+      By default a batch step processes ALL records including those that
+      failed in a previous step, which may lead to cascading errors.
+      Set acceptPolicy="NO_FAILURES" unless intentional error recovery is needed.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: LOW
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+    patterns:
+      - pattern: '<batch:step ...>...</batch:step>'
+      - pattern-not: '<batch:step ... acceptPolicy="$P" ...>...</batch:step>'

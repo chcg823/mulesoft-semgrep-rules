@@ -1,0 +1,49 @@
+# =============================================================================
+# MuleSoft Semgrep Rule Suite — Entry Point
+# =============================================================================
+#
+# NOTE: Semgrep does not support local YAML includes/imports.
+#       Rules live exclusively in rules/ to avoid duplication.
+#       Use the Makefile targets or the commands below to run scans.
+#
+# QUICK START
+# -----------
+#   All rules:
+#     semgrep --config rules/ <path>
+#
+#   Security only (CI gate — fails on any finding):
+#     semgrep --config rules/security/ --severity ERROR --severity WARNING --error <path>
+#
+#   Single category:
+#     semgrep --config rules/reliability/      <path>
+#     semgrep --config rules/performance/      <path>
+#     semgrep --config rules/maintainability/  <path>
+#
+#   Via Makefile (recommended):
+#     make scan        PROJECT=path/to/mule-project
+#     make scan-sec    PROJECT=path/to/mule-project
+#
+# RULE INVENTORY
+# --------------
+#   rules/
+#   ├── security/
+#   │   ├── credentials.yaml   (7)  Hardcoded passwords, tokens, API keys
+#   │   ├── network.yaml       (5)  HTTP/HTTPS, TLS versions, cert validation
+#   │   └── injection.yaml     (5)  DataWeave eval, SSRF, script injection, logger
+#   ├── reliability/
+#   │   ├── error-handling.yaml(5)  Missing handlers, silent swallow, APIKit mappings
+#   │   └── timeouts.yaml      (6)  Scatter-gather, VM, HTTP, async, DB query
+#   ├── performance/
+#   │   ├── batch.yaml         (4)  Foreach vs Batch, blockSize, maxFailedRecords
+#   │   └── dataweave.yaml     (5)  Inline DW, output directive, coercion, lookup tables
+#   └── maintainability/
+#       ├── naming.yaml        (4)  camelCase vars, kebab-case flows & configs
+#       ├── architecture.yaml  (5)  Global config location, env property files, DW folder
+#       └── api-standards.yaml (5)  Autodiscovery IDs, APIKit spec, correlation ID
+#
+# Total: 51 rules across 10 focused files
+# =============================================================================
+
+# This file intentionally contains no rules.
+# All rules are in rules/ — point semgrep directly at that directory.
+rules: []

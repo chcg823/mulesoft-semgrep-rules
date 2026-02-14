@@ -1,0 +1,111 @@
+# MuleSoft Semgrep Rules — Performance: DataWeave Optimisation
+# Category : performance
+# Severity : INFO
+# Use      : semgrep --config rules/performance/dataweave.yaml
+---
+rules:
+  - id: mulesoft-dw-large-inline-script
+    message: >
+      Inline DataWeave transformation exceeds the recommended line threshold.
+      Large inline scripts reduce readability, hurt testability, and make
+      IDE tooling less effective.
+      Move the logic to a dedicated .dwl file under src/main/resources/dw/
+      and reference it with: %dw 2.0 import myModule from dw::MyModule
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: performance
+      subcategory: [maintainability]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/dataweave/latest/dataweave-create-module
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      # Match CDATA blocks starting a DW script that span more than 10 lines
+      - pattern-regex: '(?s)%dw 2\.0[^\n]*\n([^\n]+\n){10,}'
+
+  - id: mulesoft-dw-payload-without-type-validation
+    message: >
+      DataWeave accesses payload fields directly without a type guard or 'default'.
+      If the payload schema changes or a field is missing, this causes a runtime error.
+      Use the default operator: payload.field default "" or add an input type declaration.
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern-regex: 'payload\.[a-zA-Z_][a-zA-Z0-9_]*(?!\s+(default|!=|==|\?|\!))'
+
+  - id: mulesoft-dw-output-not-declared
+    message: >
+      DataWeave script does not declare an explicit output directive.
+      Without 'output application/json' (or other mime type), the output type
+      is inferred at runtime, which reduces clarity and can cause unexpected
+      content-type headers. Always declare the output explicitly.
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: MEDIUM
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern-regex: '^%dw 2\.0\s*\n(?!.*output\s)'
+
+  - id: mulesoft-dw-avoid-coerce-in-loop
+    message: >
+      Type coercion (as String, as Number, as Date) detected inside a map/filter.
+      Coercing types inside loops creates overhead per element.
+      Where possible, coerce the collection once before the loop
+      or use appropriate source data types.
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern-regex: '\bmap\b[^-][\s\S]{0,200}\bas\s+(String|Number|Date|DateTime)\b'
+
+  - id: mulesoft-dw-hardcoded-lookup-table
+    message: >
+      Large hardcoded lookup table (array/object literal with many entries) detected
+      in DataWeave. Static lookup tables should be externalised to a resource file
+      (JSON/CSV under src/main/resources/) and loaded with readUrl().
+      This reduces deployment artifact size and eases maintenance.
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: performance
+      subcategory: [best-practice]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      # Heuristic: object literal with 10+ key-value entries
+      - pattern-regex: '\{[^}]{500,}\}'

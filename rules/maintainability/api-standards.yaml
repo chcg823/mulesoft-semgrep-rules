@@ -1,0 +1,129 @@
+# MuleSoft Semgrep Rules — Maintainability: API Standards
+# Category : maintainability
+# Severity : WARNING / INFO
+# Use      : semgrep --config rules/maintainability/api-standards.yaml
+---
+rules:
+  - id: mulesoft-autodiscovery-hardcoded-api-id
+    message: >
+      API Autodiscovery apiId '$ID' is hardcoded.
+      Use a property placeholder so the ID can differ per environment:
+      apiId="${api.id}" and define api.id in per-environment property files.
+    severity: WARNING
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [configuration]
+      confidence: HIGH
+      references:
+        - https://docs.mulesoft.com/api-manager/latest/api-auto-discovery-new-concept
+    patterns:
+      - pattern: '<api-gateway:autodiscovery apiId="$ID" ... />'
+      - metavariable-regex:
+          metavariable: $ID
+          regex: '^(?!\$\{)(?!\s*$).+'
+
+  - id: mulesoft-apikit-flow-missing-spec-ref
+    message: >
+      APIKit config does not reference a RAML or OAS specification file.
+      Specifying 'raml' (or 'api') ensures request/response validation and
+      auto-generates the API console. Add: raml="${api.spec.path}" pointing
+      to your spec file under src/main/resources/api/.
+    severity: WARNING
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [api-design]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/apikit/latest/apikit-4-configure-task-reference
+    patterns:
+      - pattern: '<apikit:config ... />'
+      - pattern-not-regex: '<apikit:config[^>]*(raml|api)\s*=\s*"'
+
+  - id: mulesoft-missing-api-version-in-base-path
+    message: >
+      HTTP Listener path does not include an API version segment.
+      Follow REST best practices by versioning your API base path:
+      /api/v1/ ensures non-breaking evolution of the API contract.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [api-design]
+      confidence: LOW
+      references:
+        - https://docs.mulesoft.com/general/api-led-overview
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern: '<http:listener ... path="$PATH" ... />'
+      - metavariable-regex:
+          metavariable: $PATH
+          # Path has no version segment like /v1, /v2, /v1.0
+          regex: '^(?!.*\/v[0-9]).*$'
+
+  - id: mulesoft-api-console-disabled
+    message: >
+      API Kit console is explicitly disabled (disableValidations or similar flag).
+      The console is useful for developer experience in non-production environments.
+      If this is intentional for production, ensure it is toggled per environment
+      via a property: disableValidations="${apikit.disable.validations}".
+    severity: INFO
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [api-design]
+      confidence: MEDIUM
+    patterns:
+      - pattern-regex: '<apikit:config[^>]*disableValidations\s*=\s*"true"'
+
+  - id: mulesoft-missing-correlation-id
+    message: >
+      Flow does not propagate a correlation ID. Without a correlation ID header
+      it is difficult to trace requests across microservices in distributed logs.
+      Set a correlationId variable from the inbound header (X-Correlation-ID)
+      or generate one with uuid() if absent:
+      #[attributes.headers['X-Correlation-ID'] default uuid()]
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [observability]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+    patterns:
+      - pattern: |
+          <flow name="$NAME" ...>
+            <http:listener .../>
+            $...BODY
+          </flow>
+      - pattern-not-regex: 'correlationId|X-Correlation-ID|x-correlation-id|correlation.id'

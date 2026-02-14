@@ -1,0 +1,150 @@
+# MuleSoft Semgrep Rules — Maintainability: Project Architecture
+# Category : maintainability
+# Severity : INFO / WARNING
+# Use      : semgrep --config rules/maintainability/architecture.yaml
+#
+# Recommended MuleSoft project layout (Clean Architecture):
+#   src/main/mule/
+#     global.xml              ← all global configs (connectors, properties, etc.)
+#     <api-name>.xml          ← APIKit scaffold / main flows
+#     <domain>-impl.xml       ← business logic sub-flows
+#     error-handler.xml       ← global error handler
+#   src/main/resources/
+#     dw/                     ← DataWeave modules
+#     schemas/                ← JSON/XSD schemas
+#     properties/             ← per-env .yaml property files
+---
+rules:
+  - id: mulesoft-global-config-outside-global-file
+    message: >
+      Global connector config found outside of a global/config XML file.
+      Centralise all connector configurations in global.xml or config.xml
+      to simplify governance, environment switching, and code review.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [architecture]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/about-mule-configuration
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+        - "**/global*.xml"
+        - "**/config*.xml"
+        - "**/globals*.xml"
+    patterns:
+      - pattern-either:
+          - pattern: '<http:listener-config ... />'
+          - pattern: '<http:request-config ... />'
+          - pattern: '<db:config ... />'
+          - pattern: '<jms:config ... />'
+          - pattern: '<sftp:config ... />'
+          - pattern: '<ftp:config ... />'
+          - pattern: '<vm:config ... />'
+          - pattern: '<salesforce:sfdc-config ... />'
+
+  - id: mulesoft-business-logic-in-main-flow
+    message: >
+      Business logic (transformation, enrichment, routing) placed directly inside
+      the main/APIKit router flow. The main flow should only wire together sub-flows.
+      Extract business logic into dedicated <sub-flow> elements (or separate .xml files)
+      and invoke them via <flow-ref>.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [architecture]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern: |
+          <flow name="$NAME" ...>
+            ...
+            <apikit:router .../>
+            ...
+            <ee:transform ...>...</ee:transform>
+            ...
+          </flow>
+
+  - id: mulesoft-property-file-not-per-environment
+    message: >
+      Property file name does not include an environment suffix.
+      Follow the convention: config-{env}.yaml (e.g., config-dev.yaml,
+      config-staging.yaml, config-prod.yaml) so each environment has
+      isolated configuration and deployments are fully automated.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [architecture]
+      confidence: MEDIUM
+      references:
+        - https://docs.mulesoft.com/mule-runtime/latest/configuring-properties
+    paths:
+      include:
+        - "*.xml"
+        - "*.dwl"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-regex: '<configuration-properties[^>]*file\s*=\s*"[^"]*config\.[^"]*yaml"'
+      - pattern-not-regex: '<configuration-properties[^>]*file\s*=\s*"[^"]*(dev|test|qa|staging|prod|uat|sandbox)[^"]*"'
+
+  - id: mulesoft-dw-file-not-in-dw-folder
+    message: >
+      DataWeave module is located outside the standard dw/ resource folder.
+      Place all reusable .dwl files under src/main/resources/dw/ to keep
+      the project layout consistent and leverage IDE tooling auto-discovery.
+    severity: INFO
+    languages: [generic]
+    metadata:
+      category: maintainability
+      subcategory: [architecture]
+      confidence: HIGH
+    paths:
+      include:
+        - "**/*.dwl"
+        - "*.xml"
+        - "*.yaml"
+      exclude:
+        - "pom.xml"
+        - "**/dw/**"
+        - "**/src/main/resources/dw/**"
+    patterns:
+      - pattern-regex: '%dw 2\.0'
+
+  - id: mulesoft-no-shared-global-error-handler
+    message: >
+      No global error handler found in this file.
+      Define a shared on-error-propagate in a dedicated error-handler.xml
+      (or global.xml) and reference it from each flow's error-handler to
+      ensure consistent error responses across the API.
+    severity: INFO
+    languages: [xml]
+    metadata:
+      category: maintainability
+      subcategory: [architecture]
+      confidence: LOW
+    paths:
+      include:
+        - "*.dwl"
+        - "*.yaml"
+        - "*.xml"
+      exclude:
+        - "pom.xml"
+    patterns:
+      - pattern-regex: '<mule\b'
+      - pattern-not-regex: '<error-handler\s'
